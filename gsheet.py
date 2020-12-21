@@ -10,7 +10,6 @@ import numpy as np
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
-import connect_to_database
 
 load_dotenv()
 
@@ -66,14 +65,6 @@ def append_data(sheet,row):
         logger.info(f"Appended row to {sheet}")
     except Exception as error:
         logger.error(f"Failed to append row: {error}")
-
-
-def dump_to_sheets(sheet,worksheet,sql="SELECT * FROM table"):
-    """Function to dump sql view or table to sheet based on q defaults to selecting all"""
-    sheet = open_sheet(init_sheets(), sheet, worksheet)
-    conn = connect_to_database.get_database_connection(local_dev=local_dev)
-    df = pd.read_sql_query(sql, conn)
-    write_data(sheet,df)
 
 
 def filter_df(df,col,word):
