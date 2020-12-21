@@ -2,6 +2,7 @@ gspread
 numpy
 oauth2client
 pandas
+plotly
 psycopg2-binary
 python-dotenv
 streamlit
