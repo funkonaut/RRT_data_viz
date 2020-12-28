@@ -59,17 +59,8 @@ def volunteer_details(cl):
     st.sidebar.markdown(f"### Total calls made: {len(cl)} ")
     st.sidebar.markdown(f"### Total time on calls: {df1.sum()} minutes")
     
-    #Case number contact bar graph
-    cl["count"] = 1#cl.groupby("Case Number").transform("count").iloc[:,0]
-    cl = cl.sort_values("Date Contact Made or Attempted")#this is not gonna work starting next month?
-    #POSSIBLE BUG ^
     #calls made per tracker
     with st.beta_expander("Volunteer Information"):
-        #Case number contact bar graph
-        st.markdown("#### Call Counts")
-        fig = px.bar(cl,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted"])
-#        fig.update_layout(yaxis={'visible': False, 'showticklabels': False})
-        st.plotly_chart(fig,use_container_width=True)
         cols = st.beta_columns([1,1])
         fig = px.pie(df, values='count', names=df.index, title='Volunteer Call Count',hover_data=["cases"])
         fig.update_traces(textinfo='value')
@@ -131,7 +122,10 @@ def tenant_details(el,cl):
 
     df_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")]#.drop_duplicates("Case Number") #dropping duplicates we should not have any duplicates?
     df_cc = cl.loc[cl["Case Number"].isin(df_cc["Case Number"])]  #for completed calls we want all logs displayed even the ones with follow ups!
-    df_fu = cl.drop(df_cc.index) #keeping calls that are not in the Follow Up ie Hung Up or Disconnected? 
+    #df_fu = cl.drop(df_cc.index) #keeping calls that are not in the Follow Up ie Hung Up or Disconnected? 
+    df_nfu = cl.loc[cl["Follow Up"].eq("")] #do not follow up 
+    df_fu = cl.drop(cl.loc[cl["Case Number"].isin(df_cc["Case Number"]) | cl["Case Number"].isin(df_nfu["Case Number"])].index) #Keep only calls that are follow ups and not completed or removed bc bad number
+
     #build search list for drop down select box has case number and case style in drop down
     l = []
     if cc:
@@ -167,11 +161,13 @@ def tenant_details(el,cl):
 
 def overview(el,cl):
     #Tenant info bargraph break downs
-    df_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") #do we want to drop duplicates? 
-    df_fu = cl.drop(df_cc.index) #keeping calls that are not in the Follow Up ie Hung Up or Disconnected? 
-    
+    df_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") #Here we just want to analyze completed calls Dont care about follow ups)
+#    df_fu = cl.drop(df_cc.index) #keeping calls that are not in the Follow Up ie Hung Up or Disconnected?  do we want to keep cases?
+    df_nfu = cl.loc[cl["Follow Up"].eq("")] #do not follow up 
+    df_fu = cl.drop(cl.loc[cl["Case Number"].isin(df_cc["Case Number"]) | cl["Case Number"].isin(df_nfu["Case Number"])].index) #Keep only calls that are follow ups and not completed or removed bc bad number
+   
     #Completed call break downs: 
-    display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?']	
+    display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?','Repairs issues?']	
     dfs= []
     columns = df_cc.columns
     for i,col in enumerate(columns):
@@ -191,6 +187,11 @@ def overview(el,cl):
     #Call Status break downs not unique cases...
     cs = agg_cases(cl,"Status of Call",0,True) 
    
+    #Case number contact bar graph
+    cl["count"] = 1#cl.groupby("Case Number").transform("count").iloc[:,0]
+    cl = cl.sort_values("Date Contact Made or Attempted")#this is not gonna work starting next month?
+    #POSSIBLE BUG ^ with dates and sorting
+
     #Resources requested and shared break downs
     rr = agg_cases(cl,"Best way to send resources",0,True)   
     rr = agg_checklist(rr)
@@ -224,6 +225,12 @@ def overview(el,cl):
     rr1["sent_req"]="sent"
     rr2["sent_req"]="requested" #requested 
  
+    #Follow up reason
+    fu = agg_cases(df_fu,"Follow Up Reason",0,True)
+    fu = agg_checklist(fu)
+    fu = fu.drop("")
+    fu.columns = ["count","cases"]
+ 
 # Resources Requested	Sent Resources via Text?	Best way to send resources
     st.sidebar.markdown(f"### Completed Calls: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
     st.sidebar.markdown(f"### Emails Sent: {len(el['Case Number'].unique())-len(el.loc[el['Email Method'].eq('')])}") #Errors are logged as "" in Email log gsheet
@@ -239,25 +246,30 @@ def overview(el,cl):
         fig = px.pie(rr, values="count", names=rr.index, title="Preferred Contact Method",hover_data=["cases"])
         fig.update_traces(textinfo='value')
         cols[1].plotly_chart(fig)               
+    
+        #Case number contact bar graph
+        st.markdown("#### Call Counts")
+        fig = px.bar(cl,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted","Status of Call"])
+#    fig.update_layout(yaxis={'visible': False, 'showticklabels': False})
+        st.plotly_chart(fig,use_container_width=True)
         
-        #Resources Requested
-        #cols[0].markdown("### Resources Requested")
-        #cols[0].bar_chart(rr2) 
-        #Prefered Contact Method
+        cols = st.beta_columns(2)
+        #Follow up reason
+        cols[0].markdown("### Follow Up Reason")
+        fig = px.bar(fu, x=fu.index, y="count",hover_data=["cases"]) #maybe sort special???
+        cols[0].plotly_chart(fig,use_container_width=True)
         #Resources Requested and Shared
-        st.markdown("### Resources Requested and Shared") 
+        cols[1].markdown("### Resources Requested and Shared") 
         rr2=pd.concat([rr1,rr2])
         fig = px.bar(rr2, x=rr2.index, y="count",color="sent_req",hover_data=["cases"]) #maybe sort special???
-        st.plotly_chart(fig,use_container_width=True)
-#        cols[1].bar_chart(rr1) 
-
+        cols[1].plotly_chart(fig,use_container_width=True)
         
         #Completed Calls 
         cols = st.beta_columns(len(display))
         for i, df in enumerate(dfs):
             cols[i].markdown(f"#### {display[i]}")
         for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
-            bg = alt.Chart(df).mark_bar().encode(x=alt.X(display[i], axis=alt.Axis(title=None,labelAngle=0), sort="descending"),y='Count',tooltip=[display[i],"Count","Cases"],color=alt.Color(display[i], legend=None)).properties(height=150)
+            bg = alt.Chart(df).mark_bar().encode(x=alt.X(display[i], axis=alt.Axis(title=None,labelAngle=0), sort=["Yes","No","Unknown"]),y='Count',tooltip=[display[i],"Count","Cases"],color=alt.Color(display[i], legend=None)).properties(height=150)
             cols[i].altair_chart(bg, use_container_width=True)
        
         
