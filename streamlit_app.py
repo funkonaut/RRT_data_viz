@@ -1,8 +1,10 @@
 import copy
 import datetime
 from datetime import datetime
+import altair as alt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 import gsheet
@@ -33,35 +35,52 @@ def agg_checklist(df_r):
     return df_r
 
 
-def agg_cases(df,col,i):
+def agg_cases(df,col,i,pie=False):
     df_r = df.groupby([col,"Case Number"]).count().iloc[:,i]
     df_r.name = "count"
     df_r = pd.DataFrame(df_r)
     df_a = pd.DataFrame(df_r.to_records())
     df_r = df_r.groupby(level=0).sum()
-    df_r["cases"] = df_a.groupby(col)["Case Number"].agg(lambda x: ','.join(x))
+    if pie:
+        df_r["cases"] = df_a.groupby(col)["Case Number"].agg(lambda x: ',<br>'.join(x))
+    else:
+        df_r["cases"] = df_a.groupby(col)["Case Number"].agg(lambda x: ','.join(x))
     return df_r
 
 #Include bar graph Date Contact Made or Attempted
 def volunteer_details(cl):
-    df = agg_cases(cl,"Caller Name",0)
+    df = agg_cases(cl,"Caller Name",0,True)
     #total minutes on phone per caller
     cl["Length Call (minutes)"] = cl["Length Call (minutes)"].replace("",0).astype(int)
     df1 = cl.groupby("Caller Name")["Length Call (minutes)"].sum()
     #Calls over time 
-    df2 = agg_cases(cl,"Date Contact Made or Attempted",0)
+    df2 = agg_cases(cl,"Date Contact Made or Attempted",0,True)
       
     st.sidebar.markdown(f"### Total calls made: {len(cl)} ")
     st.sidebar.markdown(f"### Total time on calls: {df1.sum()} minutes")
     
+    #Case number contact bar graph
+    cl["count"] = 1#cl.groupby("Case Number").transform("count").iloc[:,0]
+    cl = cl.sort_values("Date Contact Made or Attempted")#this is not gonna work starting next month?
+    #POSSIBLE BUG ^
     #calls made per tracker
     with st.beta_expander("Volunteer Information"):
+        #Case number contact bar graph
+        st.markdown("#### Call Counts")
+        fig = px.bar(cl,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted"])
+#        fig.update_layout(yaxis={'visible': False, 'showticklabels': False})
+        st.plotly_chart(fig,use_container_width=True)
         cols = st.beta_columns([1,1])
-        cols[0].plotly_chart(px.pie(df, values='count', names=df.index, title='Volunteer Call Count'))
-        cols[1].plotly_chart(px.pie(df1, values='Length Call (minutes)', names=df1.index, title='Volunteer Call Time'))
+        fig = px.pie(df, values='count', names=df.index, title='Volunteer Call Count',hover_data=["cases"])
+        fig.update_traces(textinfo='value')
+        cols[0].plotly_chart(fig)
+        fig1 = px.pie(df1, values='Length Call (minutes)', names=df1.index, title='Volunteer Call Time',hover_data=["Length Call (minutes)"])
+        fig1.update_traces(textinfo='value')
+        cols[1].plotly_chart(fig1)
        
-        st.text("Calls over time") 
-        st.line_chart(df2["count"],height=200)        
+        st.markdown("#### Calls over time")
+        fig = go.Figure(data=go.Scatter(x=df2.index, y=df2["count"])) 
+        st.plotly_chart(fig,height=200,use_container_width = True)        
  
         cols = st.beta_columns([1,1,1,5])
         cols[0].markdown("**Name**")
@@ -73,7 +92,7 @@ def volunteer_details(cl):
             cols[0].text(i)
             cols[1].text(row["count"])
             cols[2].text(df1.loc[i])
-            cols[3].text(row["cases"])
+            cols[3].text(row["cases"].replace("<br>",""))
 
 
 def render_tenants(df,option):
@@ -159,7 +178,7 @@ def overview(el,cl):
         if col in display:
             df_r = agg_cases(df_cc,col,i)
             df_r.columns = ["Count","Cases"]
-            
+            df_r = df_r.reset_index(level=[0]) # 
             try: #Fails where no na's
                 count_na = str(df_r.loc[""]["Count"])
                 df_r = df_r.drop("")
@@ -170,59 +189,76 @@ def overview(el,cl):
                 dfs.append(df_r)
 
     #Call Status break downs not unique cases...
-    cs = agg_cases(cl,"Status of Call",0) 
+    cs = agg_cases(cl,"Status of Call",0,True) 
    
     #Resources requested and shared break downs
-    rr = agg_cases(cl,"Best way to send resources",0)   
+    rr = agg_cases(cl,"Best way to send resources",0,True)   
     rr = agg_checklist(rr)
     rr = rr.drop("")
     rr.columns = ["count","cases"]
-    rr1 = agg_cases(cl,"Sent Resources via Text?",0)
+    rr1 = agg_cases(cl,"Sent Resources via Text?",0,True)
     rr1 = agg_checklist(rr1)
     rr1.index = rr1.index.str.strip(" ")
-    rr1 = rr1.groupby(level=0).sum()
+    rr1.columns = ["count","cases"]
+   # rr1 = rr1.groupby(level=0).sum() #WHY IS THIS GETTING RID OF CASES? HOW TO INLCUDE?
     rr1 = rr1.drop("")
     rr1 = rr1.drop(",")
-    rr1.columns = ["count"]
-    rr2 = agg_cases(cl,"Resources Requested",0)
+   # rr1.columns = ["count"]
+    
+    rr2 = agg_cases(cl,"Resources Requested",0,True)
     rr2 = agg_checklist(rr2)
     rr2.index = rr2.index.str.strip(" ")
-    rr2 = rr2.groupby(level=0).sum()
+    rr2.columns = ["count","cases"]
     rr2 = rr2.drop("")
-    rr2.columns = ["count"]
-    rr3 = agg_cases(cl,"Sent Resources via Email?",0)
+    rr2_t1 = rr2.groupby(level=0).sum()
+    rr2_t2 = rr2.groupby(level=0).agg(lambda x: ",".join(x))
+    rr2 = rr2_t1.merge(rr2_t2,right_index=True,left_index=True)   
+    #rr2.columns = ["count"]
+    
+    rr3 = agg_cases(cl,"Sent Resources via Email?",0,True)
     rr3 = rr3.drop("")
-    rr3 = rr3.drop("cases",axis=1) 
+    #rr3 = rr3.drop("cases",axis=1) 
     rr3.index = ["Emailed Resources"]
-    rr1 = pd.concat([rr3,rr1]) # Bring in email data to data about resources sent
+    
+    rr1 = pd.concat([rr3,rr1]) #Bring in email data to data about resources sent
+    rr1["sent_req"]="sent"
+    rr2["sent_req"]="requested" #requested 
  
 # Resources Requested	Sent Resources via Text?	Best way to send resources
     st.sidebar.markdown(f"### Completed Calls: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
-    st.sidebar.markdown(f"### Emails Sent: {len(el['Case Number'].unique())}") 
+    st.sidebar.markdown(f"### Emails Sent: {len(el['Case Number'].unique())-len(el.loc[el['Email Method'].eq('')])}") #Errors are logged as "" in Email log gsheet
     st.sidebar.markdown(f"### Cases Called: {len(cl['Case Number'].unique())}") 
     st.sidebar.markdown(f"### Calls to Follow Up: {len(df_fu['Case Number'].unique())}")
     with st.beta_expander("Data Overview for all Tenants"):
         cols = st.beta_columns(2)
         #Call Status
-        cols[0].plotly_chart(px.pie(cs, values="count", names=cs.index, title="Call Status Break Down"))                
-        #Resources Requested
-        cols[0].markdown("### Resources Requested")
-        cols[0].bar_chart(rr2) 
-        #Prefered Contact Method
-        cols[1].plotly_chart(px.pie(rr, values="count", names=rr.index, title="Preferred Contact Method"))                 
-        #Resources Requested and Shared
-        cols[1].markdown("### Resources Requested and Shared")
-        cols[1].bar_chart(rr1) 
-        
+        fig = px.pie(cs, values="count", names=cs.index, title="Call Status Break Down",hover_data=["cases"])
+        fig.update_traces(textinfo='value')
+        cols[0].plotly_chart(fig)#px.pie(cs, values="count", names=cs.index, title="Call Status Break Down"))                
         #Average call count for completion? this gonna be tricky...
-        #Completed Calls 
-        cols = st.beta_columns(6)
-        for i, df in enumerate(dfs):
-            cols[i].markdown(f"#### {df.index.name}")
-        for i, df in enumerate(dfs):
-            cols[i].bar_chart(df,height=150)
+        fig = px.pie(rr, values="count", names=rr.index, title="Preferred Contact Method",hover_data=["cases"])
+        fig.update_traces(textinfo='value')
+        cols[1].plotly_chart(fig)               
         
-        #Email breakdown
+        #Resources Requested
+        #cols[0].markdown("### Resources Requested")
+        #cols[0].bar_chart(rr2) 
+        #Prefered Contact Method
+        #Resources Requested and Shared
+        st.markdown("### Resources Requested and Shared") 
+        rr2=pd.concat([rr1,rr2])
+        fig = px.bar(rr2, x=rr2.index, y="count",color="sent_req",hover_data=["cases"]) #maybe sort special???
+        st.plotly_chart(fig,use_container_width=True)
+#        cols[1].bar_chart(rr1) 
+
+        
+        #Completed Calls 
+        cols = st.beta_columns(len(display))
+        for i, df in enumerate(dfs):
+            cols[i].markdown(f"#### {display[i]}")
+        for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
+            bg = alt.Chart(df).mark_bar().encode(x=alt.X(display[i], axis=alt.Axis(title=None,labelAngle=0), sort="descending"),y='Count',tooltip=[display[i],"Count","Cases"],color=alt.Color(display[i], legend=None)).properties(height=150)
+            cols[i].altair_chart(bg, use_container_width=True)
        
         
     return 
