@@ -323,17 +323,19 @@ if __name__ == "__main__":
     el = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Email_log")) #Displays invalid API Key error on web page
     cl = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Call_log"))
     cc = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Contact_list"))
-    
-    #Convert to date
-    el = convert_date(el,"Date Emailed")
-    cl = convert_date(cl,"Date Contact Made or Attempted")
-    #Sort log entries by time (most recent first)
-    el.sort_values(by=["Date Emailed"],inplace=True,ascending=False)
-    cl.sort_values(by=["Date Contact Made or Attempted"],inplace=True,ascending=False)
-    #Clean up for use 
-    cl["Length Call (minutes)"] = cl["Length Call (minutes)"].replace("",0).astype(int)
-    cl["count"] = 1 #for call count bar chart (probably better way to do this
-    
     #Credentials check
-    if el is not None: render_page(el,cl,cc)
-    else: st.text(f"Invalid API key")
+    if el is not None: 
+        #Convert to date
+        el = convert_date(el,"Date Emailed")
+        cl = convert_date(cl,"Date Contact Made or Attempted")
+        #Sort log entries by time (most recent first)
+        el.sort_values(by=["Date Emailed"],inplace=True,ascending=False)
+        cl.sort_values(by=["Date Contact Made or Attempted"],inplace=True,ascending=False)
+        #Clean up for use 
+        cl["Length Call (minutes)"] = cl["Length Call (minutes)"].replace("",0).astype(int)
+        cl["count"] = 1 #for call count bar chart (probably better way to do this
+        render_page(el,cl,cc)
+    else: 
+        st.text(f"Invalid API key")
+    
+    
