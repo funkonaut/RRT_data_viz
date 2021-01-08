@@ -93,7 +93,7 @@ def render_tenants(df,option):
     """Helper function to render individual logs"""
     df = df.groupby("Case Number") #consolidate cases for display
     for i,group in df:
-        with st.beta_expander(str(option + ": " + i + " " + group["Case Style"].str.title().str.split("Vs. ").values[0][1])): #has case number and defendant name(s)
+        with st.beta_expander(str(option + ": " + i + " " + group["Defendant"].str.title().values[0])): #has case number and defendant name(s)
             #Display info  
             count = 0
             for name,row in group.iterrows(): 
@@ -122,18 +122,18 @@ def tenant_details(el,cl,cc,df_cc,df_fu,df_ac,df_nc,df_cf):
     #Build search list for drop down select box has case number and case style in drop down has unique case numbers (but renders multiple)
     l = []
     if cc:
-        for x,y in zip(df_cc["Case Number"].drop_duplicates().values.tolist(),df_cc.drop_duplicates("Case Number")["Case Style"].str.upper().values.tolist()): 
-            l.append(x+" "+y)
+        for x,y in zip(df_cc["Case Number"].drop_duplicates().values.tolist(),df_cc.drop_duplicates("Case Number")["Defendant"].str.upper().values.tolist()): 
+            l.append(str(x)+" "+str(y))
     if fu:
-        for x,y in zip(df_fu["Case Number"].drop_duplicates().values.tolist(),df_fu.drop_duplicates("Case Number")["Case Style"].str.upper().values.tolist()): 
-            l.append(x+" "+y)
+        for x,y in zip(df_fu["Case Number"].drop_duplicates().values.tolist(),df_fu.drop_duplicates("Case Number")["Defendant"].str.upper().values.tolist()): 
+            l.append(str(x)+" "+str(y))
     if em:
-        for x,y in zip(el["Case Number"].drop_duplicates().values.tolist(),el.drop_duplicates("Case Number")["Case Style"].str.upper().values.tolist()):
-            l.append(x+" "+y)
+        for x,y in zip(el["Case Number"].drop_duplicates().values.tolist(),el.drop_duplicates("Case Number")["Defendant"].str.upper().values.tolist()):
+            l.append(str(x)+" "+str(y))
     if ac:
         l = [] # if we are doing all the cases we don't need to worry about the other entries they are already there...
-        for x,y in zip(df_ac["Case Number"].drop_duplicates().values.tolist(),df_ac.drop_duplicates("Case Number")["Case Style"].str.upper().values.tolist()):
-            l.append(x+" "+y)
+        for x,y in zip(df_ac["Case Number"].drop_duplicates().values.tolist(),df_ac.drop_duplicates("Case Number")["Defendant"].str.upper().values.tolist()):
+            l.append(str(x)+" "+str(y))
     l.insert(0,"All")
     case = st.selectbox("Search Cases",l) 
     
@@ -196,11 +196,11 @@ def overview(el,cl,cc,df_cc,df_fu):
             df_r = agg_cases(df_cc,col,i)
             df_r.columns = ["Count","Cases"]
             df_r = df_r.reset_index(level=[0]) # 
-            try: #Fails where no na's
-                count_na = str(df_r.loc[""]["Count"])
-                df_r = df_r.drop("")
-            except:
-                count_na = 0
+#            try: #Fails where no na's I think this can be kept out
+#                count_na = str(df_r.loc[""]["Count"])
+#                df_r = df_r.drop("")
+#            except:
+#                count_na = 0
 
             if not df_r.empty:
                 dfs.append(df_r)
@@ -241,10 +241,10 @@ def overview(el,cl,cc,df_cc,df_fu):
     rr2["sent_req"]="requested" #requested 
  
     #Follow up reason
-    fu = agg_cases(df_fu,"Follow Up Reason",0,True)
-    fu = agg_checklist(fu)
-    fu = fu.drop("")
-    fu.columns = ["count","cases"]
+    #fu = agg_cases(df_fu,"Follow Up Reason",0,True)
+    #fu = agg_checklist(fu)
+    #fu = fu.drop("")
+    #fu.columns = ["count","cases"]
  
     with st.beta_expander("Data Overview for all Tenants"):
         cols = st.beta_columns(2)
