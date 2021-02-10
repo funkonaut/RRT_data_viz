@@ -16,6 +16,7 @@ def st_config():
     creds = st.sidebar.text_area("Enter API Key:")
     return creds
 
+
 @st.cache
 def read_data(creds,ws,gs):
     """Read court tracking data in and drop duplicate case numbers"""
@@ -25,6 +26,7 @@ def read_data(creds,ws,gs):
         return df
     except Exception as e:
         return None
+
 
 def convert_date(df,col):
     """Helper function to convert a col to a date"""
@@ -53,6 +55,7 @@ def agg_cases(df,col,i,pie=False):
     else:
         df_r["cases"] = df_a.groupby(col)["Case Number"].agg(lambda x: ','.join(x))
     return df_r
+
 
 def volunteer_details(cl):
     """Compute and Render Volunteer Information section"""
