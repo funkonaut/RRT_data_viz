@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 import gsheet
-
+from streamlit import caching
 #See gsheet for fetching local creds
 def st_config():
     """Configure Streamlit view option and read in credential file if needed"""
@@ -339,6 +339,7 @@ if __name__ == "__main__":
         cl["count"] = 1 #for call count bar chart (probably better way to do this
         render_page(el,cl,cc)
     else: 
+        caching.clear_cache()
         st.text(f"Invalid API key")
     
     
