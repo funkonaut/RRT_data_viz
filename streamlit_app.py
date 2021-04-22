@@ -9,12 +9,17 @@ import plotly.express as px
 import streamlit as st
 import gsheet
 from streamlit import caching
+
 #See gsheet for fetching local creds
 def st_config():
-    """Configure Streamlit view option and read in credential file if needed"""
+    """Configure Streamlit view option and read in credential f
+ile if needed check if user and password are correct"""
     st.set_page_config(layout="wide")
-    creds = st.sidebar.text_area("Enter API Key:")
-    return creds
+    pw = st.sidebar.text_input("Enter password:")
+    if pw == st.secrets["PASSWORD"]:
+        return st.secrets["GSHEETS_KEY"]
+    else:
+        return None
 
 
 @st.cache
@@ -323,11 +328,11 @@ def render_page(el,cl,cc):
 if __name__ == "__main__":
     #Read in data
     creds = st_config()
-    el = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Email_log")) #Displays invalid API Key error on web page
-    cl = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Call_log"))
-    cc = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Contact_list"))
     #Credentials check
-    if el is not None: 
+    if creds is not None: 
+        el = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Email_log")) #Displays invalid API Key error on web page
+        cl = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Call_log"))
+        cc = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Contact_list"))
         #Convert to date
         el = convert_date(el,"Date Emailed")
         cl = convert_date(cl,"Date Contact Made or Attempted")
@@ -340,6 +345,6 @@ if __name__ == "__main__":
         render_page(el,cl,cc)
     else: 
         caching.clear_cache()
-        st.text(f"Invalid API key")
+        st.text(f"Invalid password.")
     
     
