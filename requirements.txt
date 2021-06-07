@@ -1,3 +1,4 @@
+cufflinks
 gspread
 numpy
 oauth2client
