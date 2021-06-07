@@ -28,11 +28,18 @@ def init_sheets(creds):
     return client
 
 
-def open_sheet(client, sn="", wn=""):
-    """Function to open a google sheet at a given worksheet"""
-    sheet = client.open(sn).worksheet(wn)
+def open_sheet(client, sn, wn):
+    """Function to open a google sheet at a given worksheet or worksheet index"""
+    sheet = client.open(sn)
+    if type(wn) is int:
+        logger.info(f"Fetching by index")
+        work_sheet = sheet.get_worksheet(int(wn))
+    else: #fetch by name
+        logger.info(f"Fetching by name")
+        work_sheet = sheet.worksheet(wn)
+
     logger.info(f"Opened sheet:{sn} at worksheet:{wn}")
-    return sheet
+    return work_sheet
 
 
 def read_data(sheet):

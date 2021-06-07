@@ -38,10 +38,15 @@ def read_data(creds,ws,gs):
     except Exception as e:
         return None
 
+def convert(x):
+    try:
+        return x.date()
+    except:
+        return None
 
 def convert_date(df,col):
     """Helper function to convert a col to a date"""
-    df[col] = pd.to_datetime(df[col]).apply(lambda x: x.date())
+    df[col] = pd.to_datetime(df[col]).apply(lambda x: convert(x))
     return df
 
 
@@ -331,7 +336,8 @@ if __name__ == "__main__":
             cl = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Call_log"))
             cc = copy.deepcopy(read_data(creds,"RRT_contacts_cl","Contact_list"))
             ev = copy.deepcopy(read_data(creds,"Court_scraper_evictions_archive","evictions_archive"))
-            pir = copy.deepcopy(read_data(creds,"Court_contact_data_PIR","All JPS"))
+            pir = copy.deepcopy(read_data(creds,"Court_contact_data_PIR",0))
+            
             #Convert to date
             el = convert_date(el,"Date Emailed")
             cl = convert_date(cl,"Date Contact Made or Attempted")
