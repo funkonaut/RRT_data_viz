@@ -12,8 +12,9 @@ import gsheet
 from streamlit import caching
 import cufflinks as cf
 
-LOCAL = True
-cf.go_offline()
+LOCAL = False
+if LOCAL:
+    cf.go_offline()
 
 #See gsheet for fetching local creds
 def st_config():
@@ -21,7 +22,7 @@ def st_config():
 ile if needed check if user and password are correct"""
     st.set_page_config(layout="wide")
     pw = st.sidebar.text_input("Enter password:")
-    if pw == "":#st.secrets["PASSWORD"]: #CHANGE CHANGE CHANGE BEFORE PUSHING!
+    if pw == st.secrets["PASSWORD"]: #CHANGE CHANGE CHANGE BEFORE PUSHING!
         return st.secrets["GSHEETS_KEY"]
     else:
         return None
