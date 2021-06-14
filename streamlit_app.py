@@ -105,7 +105,7 @@ def volunteer_details(cl):
 
 
 def render_qualitative_data(cl):
-    with st.beta_expander("Qualitative Data"):
+    with st.beta_expander("Qualitative Data (Page Searchable)"):
         display = [
             "Defendant",
             "Notes ",
@@ -152,7 +152,6 @@ def yes_no_qs(df_cc):
                 .reset_index()
                 .sort_values('Date')
             )
-            df_cc_agg["Date"] = df_cc_agg["Date"].apply(lambda x: x.strftime("%B"))
             df_cc_agg = df_cc_agg.set_index(df_cc_agg["Date"])
             df_cc_agg = df_cc_agg.pivot_table("Case Number", index=df_cc_agg.index, columns=col,aggfunc='first')
             if "Unknown" not in df_cc_agg.columns:
@@ -166,91 +165,92 @@ def yes_no_qs(df_cc):
             df_cc_agg.columns.name = None
             st.markdown(f"### {col}")
             cols = st.beta_columns(2)
-            cols[0].write(df_cc_agg)        
             cols[1].line_chart(
                 df_cc_agg[["Yes %","No %","Unknown %"]],
                 use_container_width = True,
                 height = 200
             )
+            df_cc_agg.index = df_cc_agg.index.map(lambda x: x.strftime("%B"))
+            cols[0].write(df_cc_agg)        
         
 #change try excepts to check empty and return if none for df_r and cs agg cases
 def overview(el,cl,cc,df_cc,df_fu,pir):
 #    with st.beta_expander("Data Overview for all Tenants"):
     #Date filter
     #Call Status break downs not unique cases..
-    st.markdown("### Quantitative Data by Date")
-    min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
-    max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
-    start_date,end_date = date_options(min_date,max_date)
-    cl_f = filter_dates(cl,start_date,end_date,"Date Contact Made or Attempted")
-    df_cc = cl_f.loc[cl_f["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") 
-    ev_ff = filter_dates(ev,start_date,end_date,"date_filed") 
-    ev_h = filter_dates(ev,start_date,end_date,"date")
-    cols = st.beta_columns([1,1,1]) 
-    cols[0].markdown(f"### :phone: Calls made: {len(cl_f)} ")
-    cols[1].markdown(f"### :mantelpiece_clock: Time on calls: {cl_f.groupby('Caller Name')['Length Call (minutes)'].sum().sum()}m")
-    cols[2].markdown(f"### :ballot_box_with_check: Tenants Spoken to: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
-    cols = st.beta_columns([1,1,1]) 
-    cols[0].markdown(f"### :muscle: Cases Called: {len(cl_f['Case Number'].unique())}") 
-    cols[1].markdown(f"### :open_file_folder: Filings:{len(ev_ff['case_number'].unique())}")
-    cols[2].markdown(f"### :female-judge: Hearings:{len(ev_h['case_number'].unique())}")
+    with st.beta_expander("Quantitative Data by Date"):
+        min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
+        max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
+        start_date,end_date = date_options(min_date,max_date)
+        cl_f = filter_dates(cl,start_date,end_date,"Date Contact Made or Attempted")
+        df_cc = cl_f.loc[cl_f["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") 
+        ev_ff = filter_dates(ev,start_date,end_date,"date_filed") 
+        ev_h = filter_dates(ev,start_date,end_date,"date")
+        cols = st.beta_columns([1,1,1]) 
+        cols[0].markdown(f"### :phone: Calls made: {len(cl_f)} ")
+        cols[1].markdown(f"### :mantelpiece_clock: Time on calls: {cl_f.groupby('Caller Name')['Length Call (minutes)'].sum().sum()}m")
+        cols[2].markdown(f"### :ballot_box_with_check: Tenants Spoken to: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
+        cols = st.beta_columns([1,1,1]) 
+        cols[0].markdown(f"### :muscle: Cases Called: {len(cl_f['Case Number'].unique())}") 
+        cols[1].markdown(f"### :open_file_folder: Filings:{len(ev_ff['case_number'].unique())}")
+        cols[2].markdown(f"### :female-judge: Hearings:{len(ev_h['case_number'].unique())}")
    
-    st.text("") 
-    #Completed Calls 
-    #Call Status piechart
-    #Completed call break downs: 
-    display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?','Repairs issues?']	
-    dfs= []
-    columns = df_cc.columns
-     
-    for i,col in enumerate(columns):
-        if col in display:
-            try: #if agg columns had no data
-                df_r = agg_cases(df_cc,col,i)
-            except:
-                df_r = None
-            if df_r is not None:
-              df_r.columns = ["Count","Cases"]
-              df_r = df_r.reset_index(level=[0]) # 
-              dfs.append(df_r)
+        st.text("") 
+        #Completed Calls 
+        #Call Status piechart
+        #Completed call break downs: 
+        display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?','Repairs issues?']	
+        dfs= []
+        columns = df_cc.columns
+         
+        for i,col in enumerate(columns):
+            if col in display:
+                try: #if agg columns had no data
+                    df_r = agg_cases(df_cc,col,i)
+                except:
+                    df_r = None
+                if df_r is not None:
+                  df_r.columns = ["Count","Cases"]
+                  df_r = df_r.reset_index(level=[0]) # 
+                  dfs.append(df_r)
 
-    st.text("")
-    st.text("")
-    cols = st.beta_columns(len(display))
-    for i, df in enumerate(dfs):
-        cols[i].markdown(f"#### {display[i]}")
-        cols[i].text("")
+        st.text("")
+        st.text("")
+        cols = st.beta_columns(len(display))
+        for i, df in enumerate(dfs):
+            cols[i].markdown(f"#### {display[i]}")
+            cols[i].text("")
 
-    for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
-        for vals in df.values:
-            cols[i].markdown(f"{vals[0]}: {vals[1]}/{df['Count'].sum()}")
-    try:
-        cs = agg_cases(cl_f,"Status of Call",0,True) 
-    except:
-        cs = None
-    if cs is not None:
-        fig = px.pie(cs, values="count", names=cs.index, title="Call Status Break Down",hover_data=["cases"])
-        fig.update_traces(textinfo='value')
-        cols = st.beta_columns([2,1])
-        cols[0].plotly_chart(fig)
+        for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
+            for vals in df.values:
+                cols[i].markdown(f"{vals[0]}: {vals[1]}/{df['Count'].sum()}")
+        try:
+            cs = agg_cases(cl_f,"Status of Call",0,True) 
+        except:
+            cs = None
+        if cs is not None:
+            fig = px.pie(cs, values="count", names=cs.index, title="Call Status Break Down",hover_data=["cases"])
+            fig.update_traces(textinfo='value')
+            cols = st.beta_columns([2,1])
+            cols[0].plotly_chart(fig)
 
-        #Call Status numbers
-        cols[1].text("")
-        cols[1].text("")
-        cols[1].markdown("#### Break downs for call status:")
-        cols[1].write(cs["count"])
-        cols[1].text("")
-        cols[1].text("")
+            #Call Status numbers
+            cols[1].text("")
+            cols[1].text("")
+            cols[1].markdown("#### Break downs for call status:")
+            cols[1].write(cs["count"])
+            cols[1].text("")
+            cols[1].text("")
 
-        #Case number contact bar graph
-        st.markdown("#### Call Counts")
-        #cn = date_options(cn,"Date Contact Made or Attempted")
-        fig = px.bar(cl_f,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted","Status of Call","Status"])
-# fi    g.update_layout(yaxis={'visible': False, 'showticklabels': False})
-        st.plotly_chart(fig,use_container_width=True)
-        #Completed call information
-        #volunteer details
-        volunteer_details(cl_f)    
+            #Case number contact bar graph
+            st.markdown("#### Call Counts")
+            #cn = date_options(cn,"Date Contact Made or Attempted")
+            fig = px.bar(cl_f,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted","Status of Call","Status"])
+# fi        g.update_layout(yaxis={'visible': False, 'showticklabels': False})
+            st.plotly_chart(fig,use_container_width=True)
+            #Completed call information
+            #volunteer details
+            volunteer_details(cl_f)    
 
 
 def side_bar(cl,df_cc,el,cc,df_fu,ev_s):
@@ -265,104 +265,104 @@ def side_bar(cl,df_cc,el,cc,df_fu,ev_s):
     st.sidebar.markdown(f"### Settings Today to 90 Days Out: {len(ev_s['case_number'].unique())}")
 
 def activity_graph(pir,cl,ev):
-    st.markdown("### Volunteer Activity  vs. Court Activity")
-    #call counts vs. not called counts  vs filing counts vs contact counts (with phone numbers) all unique 
-    #for contact counts aggregate by week take max date -6 days and sum unique cases with that filter (add 7 to max date to get day contacts came in)
-    #filter completed vs non completed calls
-    df_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number")  
-    df_nc = cl.loc[~cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number")
-    
-    #aggregate by day/week/month
-    #only look at date range when we started making calls to now
-    min_date = pd.to_datetime(cl["Date Contact Made or Attempted"]).min().date()
-    max_date = datetime.today().date()
-    ev = filter_dates(ev,min_date,max_date,"date_filed")
-    pir = filter_dates(pir,min_date,max_date,"File Date")
-   
-    choice = st.radio(
-        "Aggregate by day/week/month", 
-        ["day","week","month"], 
-        index=1
-    )  
-    if choice == "day":
-        freq = "D" #B ? for biz day
-    if choice == "week":
-        freq = "W-SUN" #week mon- sunday
-    if choice == "month": 
-        freq = "M" #month starting on 1st  
-
-    #set up time index, aggregate my freq, merge, and display graphs
-    #aggegrate and build dfs
-    #new contacts
-    pir['Date'] = pd.to_datetime(pir['File Date']) + pd.to_timedelta(7, unit='d') #get in a week after file date
-    df_pir = (
-        pir.groupby(pd.Grouper(key='Date', freq=freq))
-        .agg("nunique")[["Cell Phone","Home Phone"]] 
-        .reset_index()
-        .sort_values('Date')
-    )
-    df_pir = df_pir.set_index(df_pir["Date"])
-    df_pir["New Contacts"] = df_pir["Cell Phone"] + df_pir["Home Phone"]  
-
-    #call counts`
-    cl['Date'] = pd.to_datetime(cl['Date Contact Made or Attempted'])
-    df_cl = (
-        cl.groupby(pd.Grouper(key='Date', freq=freq))
-        .agg("count")[["Case Number","Defendant"]]
-        .reset_index()
-        .sort_values('Date')
-    )
-    df_cl = df_cl.set_index(df_cl["Date"])
-    df_cl["Cases Called"] = df_cl["Case Number"] 
-    
-    #completed calls
-    cl_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")]
-    df_cc = (
-        cl_cc.groupby(pd.Grouper(key='Date', freq=freq))
-        .agg("count")[["Case Number","Defendant"]]
-        .reset_index()
-        .sort_values('Date')
-    )
-    df_cc = df_cc.set_index(df_cc["Date"])
-    df_cl["Tenants Spoken With"] = df_cc["Case Number"] #can just add back into call counts df so we dont have to double merge
+    with st.beta_expander(" Volunteer Activity  vs. Court Activity"):
+        #call counts vs. not called counts  vs filing counts vs contact counts (with phone numbers) all unique 
+        #for contact counts aggregate by week take max date -6 days and sum unique cases with that filter (add 7 to max date to get day contacts came in)
+        #filter completed vs non completed calls
+        df_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number")  
+        df_nc = cl.loc[~cl["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number")
         
-    #filings 
-    ev['Date'] = pd.to_datetime(ev['date_filed']) 
-    df_ev = (
-        ev.groupby(pd.Grouper(key='Date', freq=freq))
-        .agg("nunique")[["case_number","defendants"]] 
-        .reset_index()
-        .sort_values('Date')
-    )
-    df_ev = df_ev.set_index(df_ev["Date"])
-    df_ev["Cases Filed"] = df_ev["case_number"]
-    #hearings
-    ev['Date'] = pd.to_datetime(ev['date']) 
-    df_evh = (
-        ev.groupby(pd.Grouper(key='Date', freq=freq))
-        .agg("nunique")[["case_number","defendants"]] 
-        .reset_index()
-        .sort_values('Date')
-    )
-    df_evh = df_evh.set_index(df_evh["Date"])
-    df_ev["Cases Heard"] = df_evh["case_number"]  
+        #aggregate by day/week/month
+        #only look at date range when we started making calls to now
+        min_date = pd.to_datetime(cl["Date Contact Made or Attempted"]).min().date()
+        max_date = datetime.today().date()
+        ev = filter_dates(ev,min_date,max_date,"date_filed")
+        pir = filter_dates(pir,min_date,max_date,"File Date")
+       
+        choice = st.radio(
+            "Aggregate by day/week/month", 
+            ["day","week","month"], 
+            index=1
+        )  
+        if choice == "day":
+            freq = "D" #B ? for biz day
+        if choice == "week":
+            freq = "W-SUN" #week mon- sunday
+        if choice == "month": 
+            freq = "M" #month starting on 1st  
     
-    #merge em
-    df=df_cl.merge(df_pir,right_index=True,left_index=True,how="outer")
-    df=df.merge(df_ev,right_index=True,left_index=True,how="outer")
+        #set up time index, aggregate my freq, merge, and display graphs
+        #aggegrate and build dfs
+        #new contacts
+        pir['Date'] = pd.to_datetime(pir['File Date']) + pd.to_timedelta(7, unit='d') #get in a week after file date
+        df_pir = (
+            pir.groupby(pd.Grouper(key='Date', freq=freq))
+            .agg("nunique")[["Cell Phone","Home Phone"]] 
+            .reset_index()
+            .sort_values('Date')
+        )
+        df_pir = df_pir.set_index(df_pir["Date"])
+        df_pir["New Contacts"] = df_pir["Cell Phone"] + df_pir["Home Phone"]  
     
-    #plot em
-    st.plotly_chart(
-        df[["New Contacts","Cases Called","Tenants Spoken With","Cases Filed","Cases Heard"]].iplot(
-#        df[["New Contacts","Cases Called","Tenants Spoken With","Cases Filed"]].iplot(
-            kind='lines', 
-            size = 5,
-            rangeslider=True, 
-            asFigure=True
-        ),
-        use_container_width = True,
-        height = 200
-    )
+        #call counts`
+        cl['Date'] = pd.to_datetime(cl['Date Contact Made or Attempted'])
+        df_cl = (
+            cl.groupby(pd.Grouper(key='Date', freq=freq))
+            .agg("count")[["Case Number","Defendant"]]
+            .reset_index()
+            .sort_values('Date')
+        )
+        df_cl = df_cl.set_index(df_cl["Date"])
+        df_cl["Cases Called"] = df_cl["Case Number"] 
+        
+        #completed calls
+        cl_cc = cl.loc[cl["Status of Call"].eq("Spoke with tenant call completed")]
+        df_cc = (
+            cl_cc.groupby(pd.Grouper(key='Date', freq=freq))
+            .agg("count")[["Case Number","Defendant"]]
+            .reset_index()
+            .sort_values('Date')
+        )
+        df_cc = df_cc.set_index(df_cc["Date"])
+        df_cl["Tenants Spoken With"] = df_cc["Case Number"] #can just add back into call counts df so we dont have to double merge
+            
+        #filings 
+        ev['Date'] = pd.to_datetime(ev['date_filed']) 
+        df_ev = (
+            ev.groupby(pd.Grouper(key='Date', freq=freq))
+            .agg("nunique")[["case_number","defendants"]] 
+            .reset_index()
+            .sort_values('Date')
+        )
+        df_ev = df_ev.set_index(df_ev["Date"])
+        df_ev["Cases Filed"] = df_ev["case_number"]
+        #hearings
+        ev['Date'] = pd.to_datetime(ev['date']) 
+        df_evh = (
+            ev.groupby(pd.Grouper(key='Date', freq=freq))
+            .agg("nunique")[["case_number","defendants"]] 
+            .reset_index()
+            .sort_values('Date')
+        )
+        df_evh = df_evh.set_index(df_evh["Date"])
+        df_ev["Cases Heard"] = df_evh["case_number"]  
+        
+        #merge em
+        df=df_cl.merge(df_pir,right_index=True,left_index=True,how="outer")
+        df=df.merge(df_ev,right_index=True,left_index=True,how="outer")
+        
+        #plot em
+        st.plotly_chart(
+            df[["New Contacts","Cases Called","Tenants Spoken With","Cases Filed","Cases Heard"]].iplot(
+    #        df[["New Contacts","Cases Called","Tenants Spoken With","Cases Filed"]].iplot(
+                kind='lines', 
+                size = 5,
+                rangeslider=True, 
+                asFigure=True
+            ),
+            use_container_width = True,
+            height = 200
+        )
 
 #maybe sort in render page and then drop duplicates so follow ups get droped?
 def render_page(el,cl,cc,ev,pir,ev_s):
