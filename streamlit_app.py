@@ -105,9 +105,15 @@ def volunteer_details(cl):
 
 
 def render_qualitative_data(cl):
-    with st.beta_expander("Qualitative Data (Page Searchable)"):
+    with st.beta_expander("Qualitative Data"):
+        min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
+        max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
+        start_date,end_date = date_options(min_date,max_date,"2")
+        cl = filter_dates(cl,start_date,end_date,"Date Contact Made or Attempted")
+        
         display = [
             "Defendant",
+            "Case Number",
             "Notes ",
             "Other Eviction Details",
             "LL mentioned eviction details",
@@ -119,21 +125,28 @@ def render_qualitative_data(cl):
             "Feedback about RRT"
         ]
         cl = cl[display]
-        cols = st.beta_columns(len(cl.columns))
-        for i,col in enumerate(cl.columns):
-            cols[i].markdown(f"**{col}**")
+        cl.replace("Unknown","",inplace=True)
         for idx,row in cl.iterrows(): 
-            cols = st.beta_columns(len(cl.columns))
+            st.markdown(f"**{row['Defendant']}**")
+            text = ""
             for i,col in enumerate(cl.columns):
-                cols[i].text(row[col])
+                if row[col] != "":
+                    text += row[col] + ", "
+            st.markdown(f"{text}")
+#        for i,col in enumerate(cl.columns):
+#            cols[i].markdown(f"**{col}**")
+#        for idx,row in cl.iterrows(): 
+#            cols = st.beta_columns(len(cl.columns))
+#            for i,col in enumerate(cl.columns):
+#                cols[i].text(row[col])
                 
              
 
 #UI start date end date filtering assume dataframe already in date format
-def date_options(min_date,max_date):
+def date_options(min_date,max_date,key):
     cols = st.beta_columns(2)
-    start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date)#,format="MM/DD/YY")
-    end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date())#,format="MM/DD/YY")
+    start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date,key=key)#,format="MM/DD/YY")
+    end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date(),key=key)#,format="MM/DD/YY")
     return start_date,end_date
 
 
@@ -181,7 +194,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
     with st.beta_expander("Quantitative Data by Date"):
         min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
         max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
-        start_date,end_date = date_options(min_date,max_date)
+        start_date,end_date = date_options(min_date,max_date,"1")
         cl_f = filter_dates(cl,start_date,end_date,"Date Contact Made or Attempted")
         df_cc = cl_f.loc[cl_f["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") 
         ev_ff = filter_dates(ev,start_date,end_date,"date_filed") 
@@ -190,10 +203,11 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
         cols[0].markdown(f"### :phone: Calls made: {len(cl_f)} ")
         cols[1].markdown(f"### :mantelpiece_clock: Time on calls: {cl_f.groupby('Caller Name')['Length Call (minutes)'].sum().sum()}m")
         cols[2].markdown(f"### :ballot_box_with_check: Tenants Spoken to: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
-        cols = st.beta_columns([1,1,1]) 
+        cols = st.beta_columns([1,1,1,1]) 
         cols[0].markdown(f"### :muscle: Cases Called: {len(cl_f['Case Number'].unique())}") 
         cols[1].markdown(f"### :open_file_folder: Filings:{len(ev_ff['case_number'].unique())}")
         cols[2].markdown(f"### :female-judge: Hearings:{len(ev_h['case_number'].unique())}")
+        cols[3].markdown(f"### :telephone_receiver::smiley: Number of callers:{len(cl_f['Caller Name'].unique())}")
    
         st.text("") 
         #Completed Calls 
@@ -243,10 +257,16 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
             cols[1].text("")
 
             #Case number contact bar graph
-            st.markdown("#### Call Counts")
-            #cn = date_options(cn,"Date Contact Made or Attempted")
-            fig = px.bar(cl_f,x="Case Number",y="count",color="Caller Name",hover_data=["count","Date Contact Made or Attempted","Status of Call","Status"])
-# fi        g.update_layout(yaxis={'visible': False, 'showticklabels': False})
+            st.markdown("#### Completed Call Counts")
+            cl_s = cl_f.loc[cl_f["Status of Call"]=="Spoke with tenant call completed"]
+
+            cl_s = pd.DataFrame(cl_s.groupby("Caller Name")["count"].sum())
+            cl_s["Status"] = "Spoke with tenant call completed"
+#            cl_a = pd.DataFrame(cl_f.groupby("Caller Name")["count"].sum())
+#            cl_a["Status"] = "All calls"
+#            cl_ff = pd.concat([cl_a,cl_s])                          
+#            fig = px.bar(cl_ff,x=cl_ff.index,y="count",color="Status")
+            fig = px.bar(cl_s,x=cl_s.index,y="count",color="Status")
             st.plotly_chart(fig,use_container_width=True)
             #Completed call information
             #volunteer details
