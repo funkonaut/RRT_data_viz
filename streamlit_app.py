@@ -7,10 +7,12 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+
 import streamlit as st
 import gsheet
 from streamlit import caching
 import cufflinks as cf
+
 
 LOCAL = False
 if LOCAL:
@@ -145,8 +147,10 @@ def render_qualitative_data(cl):
 #UI start date end date filtering assume dataframe already in date format
 def date_options(min_date,max_date,key):
     cols = st.beta_columns(2)
-    start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date,key=key)#,format="MM/DD/YY")
-    end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date(),key=key)#,format="MM/DD/YY")
+    key1 = key + "a"
+    key2 = key + "b"
+    start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date,key=key1)#,format="MM/DD/YY")
+    end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date(),key=key2)#,format="MM/DD/YY")
     return start_date,end_date
 
 
