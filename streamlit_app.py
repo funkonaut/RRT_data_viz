@@ -92,49 +92,64 @@ def volunteer_details(cl):
     fig1 = px.pie(df1, values='Length Call (minutes)', names=df1.index, title='Volunteer Call Time',hover_data=["Length Call (minutes)"])
     fig1.update_traces(textinfo='value')
     cols[1].plotly_chart(fig1)
-   
-    cols = st.beta_columns([1,1,1,5])
+    
+
+    #Summary table
+    #completed calls
+    cl_s = cl.loc[cl["Status of Call"]=="Spoke with tenant call completed"]
+    cl_s = pd.DataFrame(cl_s.groupby("Caller Name")["count"].sum())
+    #combine non completed and completed
+    df = df.merge(cl_s,on="Caller Name")
+    cols = st.beta_columns([1,1,1,1])
     cols[0].markdown("**Name**")
     cols[1].markdown("**Call Count**")
-    cols[2].markdown("**Time on Calls**")
-    cols[3].markdown("**Case Numbers**")
+    cols[2].markdown("**Tenants Spoken To**")
+    cols[3].markdown("**Time on Calls**")
     for i,row in df.iterrows(): 
-        cols = st.beta_columns([1,1,1,5])
+        cols = st.beta_columns([1,1,1,1])
         cols[0].text(i)
-        cols[1].text(row["count"])
-        cols[2].text(df1.loc[i])
-        cols[3].text(row["cases"].replace("<br>",""))
+        cols[1].text(row["count_x"])
+        cols[2].text(row["count_y"])
+        cols[3].text(df1.loc[i])
 
 
+#So it would be each questions and then you would lead each response with the name/case# and then the info?
 def render_qualitative_data(cl):
-    with st.beta_expander("Qualitative Data"):
-        min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
-        max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
-        start_date,end_date = date_options(min_date,max_date,"2")
-        cl = filter_dates(cl,start_date,end_date,"Date Contact Made or Attempted")
-        
-        display = [
-            "Defendant",
-            "Case Number",
-            "Notes ",
-            "Other Eviction Details",
-            "LL mentioned eviction details",
-            "Rental Assistance Programs Applied",
-            "Rental Assistance Application Issues",
-            "Health Issues",
-            "Repair notes",
-            "Want to Call Code?",
-            "Feedback about RRT"
-        ]
-        cl = cl[display]
-        cl.replace("Unknown","",inplace=True)
-        for idx,row in cl.iterrows(): 
-            st.markdown(f"**{row['Defendant']}**")
-            text = ""
-            for i,col in enumerate(cl.columns):
-                if row[col] != "":
-                    text += row[col] + ", "
-            st.markdown(f"{text}")
+#    with st.beta_expander("Qualitative Data"):
+#        min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
+#        max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
+#        start_date,end_date = date_options(min_date,max_date,"2")
+    cl.reset_index(inplace=True)
+
+    display = [
+        "Defendant",
+        "Case Number",
+        "Notes ",
+        "Other Eviction Details",
+        "LL mentioned eviction details",
+        "Rental Assistance Programs Applied",
+        "Rental Assistance Application Issues",
+        "Health Issues",
+        "Repair notes",
+        "Want to Call Code?",
+        "Feedback about RRT"
+    ]
+    cl = cl[display]
+    cl.replace("Unknown","",inplace=True)
+    for col in cl.columns:
+        if not((col == "Defendant") or (col == "Case Number")):
+            st.markdown(f"## {col}")
+            for i,entry in enumerate(cl[col]):
+                if entry != "":
+                    st.markdown(f"**{cl.at[i,'Defendant']}/{cl.at[i,'Case Number']}:** {entry}")
+            
+    #for idx,row in cl.iterrows(): 
+    #    st.markdown(f"**{row['Defendant']}**")
+    #    text = ""
+    #    for i,col in enumerate(cl.columns):
+    #        if row[col] != "":
+    #            text += row[col] + ", "
+    #    st.markdown(f"{text}")
 #        for i,col in enumerate(cl.columns):
 #            cols[i].markdown(f"**{col}**")
 #        for idx,row in cl.iterrows(): 
@@ -144,13 +159,22 @@ def render_qualitative_data(cl):
                 
              
 
-#UI start date end date filtering assume dataframe already in date format
+#UI start date end date filtering assume dataframe already in date format.date()
 def date_options(min_date,max_date,key):
-    cols = st.beta_columns(2)
-    key1 = key + "a"
-    key2 = key + "b"
-    start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date,key=key1)#,format="MM/DD/YY")
-    end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date(),key=key2)#,format="MM/DD/YY")
+    quick_date_input = st.selectbox("Date Input",["User Input","Previous Week","Previous Month (4 weeks)"],1)
+    if quick_date_input == "Previous Week":
+        start_date = (datetime.today() - timedelta(weeks=1)).date()
+        end_date = datetime.today().date()
+    if quick_date_input == "Previous Month (4 weeks)":
+        start_date = (datetime.today() - timedelta(weeks=4)).date()
+        end_date = datetime.today().date()
+    if quick_date_input == "User Input":
+        key1 = key + "a"
+        key2 = key + "b"
+        cols = st.beta_columns(2)
+        start_date = cols[0].date_input("Start Date",min_value=min_date,max_value=max_date,value=min_date,key=key1)#,format="MM/DD/YY")
+        end_date = cols[1].date_input("End Date",min_value=min_date,max_value=max_date,value=datetime.today().date(),key=key2)#,format="MM/DD/YY")
+ 
     return start_date,end_date
 
 
@@ -158,7 +182,7 @@ def filter_dates(df,start_date,end_date,col):
     return df.loc[(df[col].apply(lambda x: x)>=start_date) & (df[col].apply(lambda x: x)<=end_date)]
 
 def yes_no_qs(df_cc):
-    with st.beta_expander("Yes / No Questions Overview"):
+    with st.beta_expander("Trends Over Time"):
         display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?','Repairs issues?']	
         df_cc["Date"] = pd.to_datetime(df_cc['Date Contact Made or Attempted'])
         for col in display:
@@ -179,6 +203,8 @@ def yes_no_qs(df_cc):
             df_cc_agg["Yes %"] = (df_cc_agg["Yes"] / (df_cc_agg["Yes"]+df_cc_agg["Unknown"]+df_cc_agg["No"])*100)
             df_cc_agg["No %"] = (df_cc_agg["No"] / (df_cc_agg["Yes"]+df_cc_agg["Unknown"]+df_cc_agg["No"])*100) 
             df_cc_agg["Unknown %"] = (df_cc_agg["Unknown"] / (df_cc_agg["Yes"]+df_cc_agg["Unknown"]+df_cc_agg["No"])*100) 
+            #round percentages
+            df_cc_agg[["Yes %","No %","Unknown %"]] = df_cc_agg[["Yes %","No %","Unknown %"]].round(decimals=1).astype(object)
             df_cc_agg.columns.name = None
             st.markdown(f"### {col}")
             cols = st.beta_columns(2)
@@ -195,7 +221,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
 #    with st.beta_expander("Data Overview for all Tenants"):
     #Date filter
     #Call Status break downs not unique cases..
-    with st.beta_expander("Quantitative Data by Date"):
+    with st.beta_expander("Call Data by Date"):
         min_date = cl["Date Contact Made or Attempted"].min()-timedelta(days=7)
         max_date = datetime.today().date()+timedelta(days=90) #df[col].max()+timedelta(days=31) #lets just go a month out actually lets do today
         start_date,end_date = date_options(min_date,max_date,"1")
@@ -203,7 +229,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
         df_cc = cl_f.loc[cl_f["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") 
         ev_ff = filter_dates(ev,start_date,end_date,"date_filed") 
         ev_h = filter_dates(ev,start_date,end_date,"date")
-        cols = st.beta_columns([1,1,1]) 
+        cols = st.beta_columns([1,1,1,1]) 
         cols[0].markdown(f"### :phone: Calls made: {len(cl_f)} ")
         cols[1].markdown(f"### :mantelpiece_clock: Time on calls: {cl_f.groupby('Caller Name')['Length Call (minutes)'].sum().sum()}m")
         cols[2].markdown(f"### :ballot_box_with_check: Tenants Spoken to: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
@@ -239,9 +265,12 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
             cols[i].markdown(f"#### {display[i]}")
             cols[i].text("")
 
+        #Yes/ No / Unknown ?s
         for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
             for vals in df.values:
                 cols[i].markdown(f"{vals[0]}: {vals[1]}/{df['Count'].sum()}")
+
+        #Call Status Pie Chart and table/ Completed calls 
         try:
             cs = agg_cases(cl_f,"Status of Call",0,True) 
         except:
@@ -261,20 +290,20 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
             cols[1].text("")
 
             #Case number contact bar graph
-            st.markdown("#### Completed Call Counts")
-            cl_s = cl_f.loc[cl_f["Status of Call"]=="Spoke with tenant call completed"]
-
-            cl_s = pd.DataFrame(cl_s.groupby("Caller Name")["count"].sum())
-            cl_s["Status"] = "Spoke with tenant call completed"
+#            cl_s["Status"] = "Spoke with tenant call completed"
 #            cl_a = pd.DataFrame(cl_f.groupby("Caller Name")["count"].sum())
 #            cl_a["Status"] = "All calls"
 #            cl_ff = pd.concat([cl_a,cl_s])                          
 #            fig = px.bar(cl_ff,x=cl_ff.index,y="count",color="Status")
-            fig = px.bar(cl_s,x=cl_s.index,y="count",color="Status")
-            st.plotly_chart(fig,use_container_width=True)
+#            fig = px.bar(cl_s,x=cl_s.index,y="count",color="Status")
+#            st.plotly_chart(fig,use_container_width=True)
             #Completed call information
             #volunteer details
             volunteer_details(cl_f)    
+        st.write("")
+        st.write("")
+        if st.checkbox("Qualitative Data"): 
+            render_qualitative_data(cl_f)
 
 
 def side_bar(cl,df_cc,el,cc,df_fu,ev_s):
@@ -415,10 +444,9 @@ def render_page(el,cl,cc,ev,pir,ev_s):
     ev_s = filter_dates(ev_s,start_date,end_date,"setting_date") 
     #Render sub-pages
     side_bar(cl,df_cc,el,cc,df_fu,ev_s)
-    activity_graph(pir,cl,ev) 
     overview(el,cl,cc,df_cc,df_fu,pir)
-    render_qualitative_data(df_cc)
     yes_no_qs(df_cc)
+    activity_graph(pir,cl,ev) 
 
 
 if __name__ == "__main__":
