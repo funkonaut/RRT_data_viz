@@ -132,7 +132,8 @@ def render_qualitative_data(cl):
         "Health Issues",
         "Repair notes",
         "Want to Call Code?",
-        "Feedback about RRT"
+        "Feedback about RRT",
+        "Talking with Media"
     ]
     cl = cl[display]
     cl.replace("Unknown","",inplace=True)
@@ -161,12 +162,21 @@ def render_qualitative_data(cl):
 
 #UI start date end date filtering assume dataframe already in date format.date()
 def date_options(min_date,max_date,key):
-    quick_date_input = st.selectbox("Date Input",["User Input","Previous Week","Previous Month (4 weeks)"],1)
+    quick_date_input = st.selectbox("Date Input",["Custom Date Range","Previous Week","Previous 2 Weeks","Previous Month (4 weeks)"],1)
     if quick_date_input == "Previous Week":
-        start_date = (datetime.today() - timedelta(weeks=1)).date()
+        start_date = (
+            datetime.today() - timedelta(weeks=1)
+        ).date()
+        end_date = datetime.today().date()
+    if quick_date_input == "Previous 2 Weeks":
+        start_date = (
+            datetime.today() - timedelta(weeks=2)
+        ).date()
         end_date = datetime.today().date()
     if quick_date_input == "Previous Month (4 weeks)":
-        start_date = (datetime.today() - timedelta(weeks=4)).date()
+        start_date = (
+            datetime.today() - timedelta(weeks=4)
+        ).date()
         end_date = datetime.today().date()
     if quick_date_input == "User Input":
         key1 = key + "a"
@@ -229,7 +239,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
         df_cc = cl_f.loc[cl_f["Status of Call"].eq("Spoke with tenant call completed")].drop_duplicates("Case Number") 
         ev_ff = filter_dates(ev,start_date,end_date,"date_filed") 
         ev_h = filter_dates(ev,start_date,end_date,"date")
-        cols = st.beta_columns([1,1,1,1]) 
+        cols = st.beta_columns([1,1,1]) 
         cols[0].markdown(f"### :phone: Calls made: {len(cl_f)} ")
         cols[1].markdown(f"### :mantelpiece_clock: Time on calls: {cl_f.groupby('Caller Name')['Length Call (minutes)'].sum().sum()}m")
         cols[2].markdown(f"### :ballot_box_with_check: Tenants Spoken to: {len(df_cc['Case Number'].unique())}") #Do we want to only have unique case numbers?
@@ -241,8 +251,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
    
         st.text("") 
         #Completed Calls 
-        #Call Status piechart
-        #Completed call break downs: 
+        #Completed call Yes/No break downs: 
         display = ['Still living at address?','Knows about moratorium?','Knows about the eviction?','Eviction for Non-Payment?','LL mentioned eviction?','Rental Assistance Applied?','Repairs issues?']	
         dfs= []
         columns = df_cc.columns
@@ -267,6 +276,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
 
         #Yes/ No / Unknown ?s
         for i, df in enumerate(dfs): #Sort change to ["Yes","No","Unknown"]
+            #clean up blanks
             for vals in df.values:
                 cols[i].markdown(f"{vals[0]}: {vals[1]}/{df['Count'].sum()}")
 
@@ -302,6 +312,7 @@ def overview(el,cl,cc,df_cc,df_fu,pir):
             volunteer_details(cl_f)    
         st.write("")
         st.write("")
+        st.markdown("## Click Checkbox Below for Qualitative Data")
         if st.checkbox("Qualitative Data"): 
             render_qualitative_data(cl_f)
 
